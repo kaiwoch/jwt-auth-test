@@ -25,7 +25,7 @@ type User struct {
 type Items struct {
 	Id    int    `json:"id"`
 	Name  string `json:"name"`
-	Price string `json:"int"`
+	Price int    `json:"price"`
 }
 
 func main() {
