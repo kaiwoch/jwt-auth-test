@@ -23,9 +23,8 @@ type User struct {
 }
 
 type Inventory struct {
-	UserID   int `json:"user_id"`
-	ItemID   int `json:"item_id"`
-	Quantity int `json:"quantity"`
+	ItemName string `json:"name"`
+	Quantity int    `json:"quantity"`
 }
 
 func main() {
@@ -140,7 +139,7 @@ func GetItems(c *gin.Context) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT * FROM inventory WHERE user_id = $1", userID)
+	rows, err := db.Query("SELECT shop_items.name, inventory.quantity FROM inventory JOIN shop_items ON shop_items.id = inventory.item_id WHERE user_id = $1", userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
@@ -148,7 +147,7 @@ func GetItems(c *gin.Context) {
 
 	for rows.Next() {
 		i := Inventory{}
-		err = rows.Scan(&i.UserID, &i.ItemID, &i.Quantity)
+		err = rows.Scan(&i.ItemName, &i.Quantity)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return

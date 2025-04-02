@@ -9,6 +9,7 @@ CREATE TABLE transactions (
     FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
+-- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
