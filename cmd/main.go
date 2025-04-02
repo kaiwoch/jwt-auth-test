@@ -22,10 +22,10 @@ type User struct {
 	Password string `json:"password"`
 }
 
-type Items struct {
-	Id    int    `json:"id"`
-	Name  string `json:"name"`
-	Price int    `json:"price"`
+type Inventory struct {
+	UserID   int `json:"user_id"`
+	ItemID   int `json:"item_id"`
+	Quantity int `json:"quantity"`
 }
 
 func main() {
@@ -59,7 +59,8 @@ func Auth(c *gin.Context) {
 	inputhashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 
 	var hashedPassword string
-	err = db.QueryRow("SELECT password_hash FROM users WHERE username = $1", input.Username).Scan(&hashedPassword)
+	var id int
+	err = db.QueryRow("SELECT id, password_hash FROM users WHERE username = $1", input.Username).Scan(&id, &hashedPassword) // если пользователя нет, то ID будет 0 - это нужно поправить
 	if err == sql.ErrNoRows {
 		_, err = db.Exec("INSERT INTO users (username, password_hash) VALUES ($1, $2)", input.Username, string(inputhashedPassword))
 		hashedPassword = string(inputhashedPassword)
@@ -76,8 +77,12 @@ func Auth(c *gin.Context) {
 
 	token := jwt.New(jwt.SigningMethodHS256)
 
+	exp := time.Now().Add(time.Minute * 5).Unix()
+
 	claims := token.Claims.(jwt.MapClaims)
-	claims["exp"] = time.Now().Add(time.Minute * 5).Unix()
+	claims["exp"] = exp
+	claims["username"] = input.Username
+	claims["sub"] = id
 
 	tokenString, err := token.SignedString(mySignKey)
 	if err != nil {
@@ -102,10 +107,14 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": "not authorized"})
 				return
 			}
-
-			if parsedToken.Valid {
-				fmt.Println("Yes")
+			if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok && parsedToken.Valid {
+				c.Set("userID", claims["sub"])
+				c.Set("username", claims["username"])
+				c.Next()
+			} else {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 			}
+
 		} else {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": "not authorized"})
 			return
@@ -114,7 +123,15 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 }
 
 func GetItems(c *gin.Context) {
-	var ItemList []Items = []Items{}
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User information not found"})
+		return
+	}
+
+	fmt.Printf("User %v is accessing items\n", userID)
+
+	var ItemList []Inventory = []Inventory{}
 
 	db, err := sql.Open("postgres", "postgres://postgres:postgres@localhost/coins?sslmode=disable")
 	if err != nil {
@@ -123,15 +140,15 @@ func GetItems(c *gin.Context) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT * FROM shop_items")
+	rows, err := db.Query("SELECT * FROM inventory WHERE user_id = $1", userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
 
 	for rows.Next() {
-		i := Items{}
-		err = rows.Scan(&i.Id, &i.Name, &i.Price)
+		i := Inventory{}
+		err = rows.Scan(&i.UserID, &i.ItemID, &i.Quantity)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
