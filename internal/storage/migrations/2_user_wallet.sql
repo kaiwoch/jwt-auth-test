@@ -1,7 +1,8 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE user_wallet (
-    user_id INT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    user_id INT,
     coin_balance INT DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
