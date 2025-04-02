@@ -62,7 +62,7 @@ func main() {
 	protected.Use(JWTAuthMiddleware())
 	{
 		protected.GET("/info", GetInfo)
-		//protected.GET("/buy/{}", BuyItem)
+		protected.GET("/buy/:item_id", BuyItem)
 		protected.POST("/sendCoin", SendCoin)
 	}
 
@@ -96,9 +96,9 @@ func Auth(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
-		// решил добавить бонус при регистрации
+
 		db.QueryRow("SELECT id FROM users WHERE username = $1", input.Username).Scan(&id)
-		_, err = db.Exec("INSERT INTO user_wallet (user_id, coin_balance) VALUES ($1, $2)", id, 100)
+		_, err = db.Exec("INSERT INTO user_wallet (user_id, coin_balance) VALUES ($1, $2)", id, 1000)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
@@ -281,5 +281,57 @@ func SendCoin(c *gin.Context) {
 			return
 		}
 	}
+
+}
+
+func BuyItem(c *gin.Context) {
+	itemID := c.Param("item_id")
+	var itemPrcie, balance, quantity int
+
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User information not found"})
+		return
+	}
+
+	db, err := sql.Open("postgres", "postgres://postgres:postgres@localhost/coins?sslmode=disable")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+	defer db.Close()
+
+	db.QueryRow("SELECT coin_balance FROM user_wallet WHERE user_id = $1", userID).Scan(&balance)
+	db.QueryRow("SELECT price FROM shop_items WHERE id = $1", itemID).Scan(&itemPrcie)
+	if balance < itemPrcie {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Not enough money"})
+		return
+	} else if itemPrcie == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bad item id"})
+		return
+	} else {
+		_, err := db.Exec("UPDATE user_wallet SET coin_balance = $1 WHERE user_id = $2", balance-itemPrcie, userID)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		err = db.QueryRow("SELECT quantity FROM inventory WHERE user_id = $1 AND item_id = $2", userID, itemID).Scan(&quantity)
+		if err == sql.ErrNoRows {
+			_, err = db.Exec("INSERT INTO inventory (user_id, item_id, quantity) VALUES ($1, $2, $3)", userID, itemID, 1)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+		} else {
+			_, err = db.Exec("UPDATE inventory SET quantity = $1 WHERE user_id = $2 AND item_id = $3 ", quantity+1, userID, itemID)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+		}
+
+	}
+
+	fmt.Printf("User %v is accessing info\n", userID)
 
 }
