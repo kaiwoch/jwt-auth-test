@@ -6,11 +6,6 @@ type User struct {
 	Password string
 }
 
-type Wallet struct {
-	UserID  int
-	Balance int
-}
-
 type Received struct {
 	FromUser string `json:"from"`
 	Amount   int    `json:"amount"`

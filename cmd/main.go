@@ -28,17 +28,19 @@ func main() {
 	authUsecase := usecase.NewAuthUseCase(userRepo, walletRepo, auth)
 	transactionUseCase := usecase.NewTransactionUsecase(walletRepo, transactionRepo)
 	inventoryUseCase := usecase.NewInventoryUsecase(inventoryRepo, walletRepo)
+	historyUsecase := usecase.NewHistoryUsecase(inventoryRepo, transactionRepo, walletRepo)
 
 	authHandler := delivery.NewAuthHandler(authUsecase)
 	transactionHandler := delivery.NewTransactionHandler(transactionUseCase)
 	BuyHandler := delivery.NewBuyHandler(inventoryUseCase)
+	InfoHandler := delivery.NewInfoHandler(historyUsecase)
 
 	r := gin.Default()
 	r.POST("/auth", authHandler.Auth)
 	protected := r.Group("/api")
 	protected.Use(middlewares.JWTAuthMiddleware(auth))
 	{
-		//protected.GET("/info", GetInfo)
+		protected.GET("/info", InfoHandler.Info)
 		protected.POST("/sendCoin", transactionHandler.SendTokens)
 		protected.GET("/buy/:item_id", BuyHandler.BuyItem)
 	}
