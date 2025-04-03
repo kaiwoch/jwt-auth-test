@@ -22,11 +22,16 @@ func main() {
 	userRepo := storage.NewUsersStorage(db)
 	walletRepo := storage.NewWalletStorage(db)
 	transactionRepo := storage.NewTransactionStorage(db)
+	inventoryRepo := storage.NewInventoryStorage(db)
+
 	auth := usecase.NewAuthService("secret")
 	authUsecase := usecase.NewAuthUseCase(userRepo, walletRepo, auth)
 	transactionUseCase := usecase.NewTransactionUsecase(walletRepo, transactionRepo)
+	inventoryUseCase := usecase.NewInventoryUsecase(inventoryRepo, walletRepo)
+
 	authHandler := delivery.NewAuthHandler(authUsecase)
 	transactionHandler := delivery.NewTransactionHandler(transactionUseCase)
+	BuyHandler := delivery.NewBuyHandler(inventoryUseCase)
 
 	r := gin.Default()
 	r.POST("/auth", authHandler.Auth)
@@ -35,7 +40,7 @@ func main() {
 	{
 		//protected.GET("/info", GetInfo)
 		protected.POST("/sendCoin", transactionHandler.SendTokens)
-		//protected.GET("/buy/:item_id", BuyItem)
+		protected.GET("/buy/:item_id", BuyHandler.BuyItem)
 	}
 
 	r.Run(":8080")
