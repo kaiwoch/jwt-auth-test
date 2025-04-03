@@ -2,6 +2,7 @@ package main
 
 import (
 	"1/internal/delivery"
+	"1/internal/delivery/middlewares"
 	"1/internal/storage"
 	"1/internal/usecase"
 	"database/sql"
@@ -20,12 +21,22 @@ func main() {
 
 	userRepo := storage.NewUsersStorage(db)
 	walletRepo := storage.NewWalletStorage(db)
+	transactionRepo := storage.NewTransactionStorage(db)
 	auth := usecase.NewAuthService("secret")
-	authUseCase := usecase.NewAuthUseCase(userRepo, walletRepo, auth)
-	authHandler := delivery.NewAuthHandler(authUseCase)
+	authUsecase := usecase.NewAuthUseCase(userRepo, walletRepo, auth)
+	transactionUseCase := usecase.NewTransactionUsecase(walletRepo, transactionRepo)
+	authHandler := delivery.NewAuthHandler(authUsecase)
+	transactionHandler := delivery.NewTransactionHandler(transactionUseCase)
 
 	r := gin.Default()
 	r.POST("/auth", authHandler.Auth)
+	protected := r.Group("/api")
+	protected.Use(middlewares.JWTAuthMiddleware(auth))
+	{
+		//protected.GET("/info", GetInfo)
+		protected.POST("/sendCoin", transactionHandler.SendTokens)
+		//protected.GET("/buy/:item_id", BuyItem)
+	}
 
 	r.Run(":8080")
 }

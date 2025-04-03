@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"1/internal/usecase"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -36,12 +37,14 @@ func JWTAuthMiddleware(authService usecase.AuthUsecase) gin.HandlerFunc {
 			return
 		}
 
-		userID, ok := claims["sub"].(int)
+		fmt.Println(claims)
+
+		userID, ok := claims["sub"]
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID in token"})
 			return
 		}
-		c.Set("userID", userID)
+		c.Set("userID", int(userID.(float64)))
 
 		c.Next()
 	}
