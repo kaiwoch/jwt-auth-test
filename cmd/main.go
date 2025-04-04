@@ -7,17 +7,23 @@ import (
 	"1/internal/usecase"
 	"database/sql"
 	"log"
+	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	db, err := sql.Open("postgres", "postgres://postgres:postgres@localhost/coins?sslmode=disable")
+	//gin.SetMode(gin.ReleaseMode)
+	db, err := sql.Open("postgres", "postgres://postgres:postgres@localhost:6432/postgres?sslmode=disable&binary_parameters=yes")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	db.SetMaxOpenConns(100)
+	db.SetMaxIdleConns(20)
 
 	userRepo := storage.NewUsersStorage(db)
 	walletRepo := storage.NewWalletStorage(db)
@@ -35,7 +41,8 @@ func main() {
 	BuyHandler := delivery.NewBuyHandler(inventoryUseCase)
 	InfoHandler := delivery.NewInfoHandler(historyUsecase)
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
 	r.POST("/auth", authHandler.Auth)
 	protected := r.Group("/api")
 	protected.Use(middlewares.JWTAuthMiddleware(auth))
@@ -45,5 +52,15 @@ func main() {
 		protected.GET("/buy/:item_id", BuyHandler.BuyItem)
 	}
 
-	r.Run(":8080")
+	srv := &http.Server{
+		Addr:         ":8080",
+		Handler:      r,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
 }

@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"1/internal/usecase/mocks"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,8 +23,6 @@ func TestJWTAuthMiddleware(t *testing.T) {
 			"exp": time.Now().Add(time.Second * 5).Unix(),
 		})
 		token.Valid = true
-
-		fmt.Println(token)
 
 		authServiceMock.On("ValidateToken", "fake_token").Return(token, nil)
 
