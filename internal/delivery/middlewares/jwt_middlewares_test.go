@@ -19,7 +19,7 @@ func TestJWTAuthMiddleware(t *testing.T) {
 		authServiceMock := new(mocks.AuthServiceMock)
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"sub": 1,
+			"sub": float64(1),
 			"exp": time.Now().Add(time.Second * 5).Unix(),
 		})
 		token.Valid = true
